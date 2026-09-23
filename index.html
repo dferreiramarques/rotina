@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rotina — painel semanal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF0EC; --panel:#F8F9F6; --ink:#18212B; --muted:#5B6672; --line:#CDD3CF;
+  --green:#1F9D55; --amber:#DB9A12; --red:#D23B3B; --off:#CBD1CD; --accent:#245C8C;
+  --field:#FFFFFF; --hi:rgba(36,92,140,.08);
+  --cond:"Barlow Condensed","Arial Narrow","Roboto Condensed",sans-serif;
+  --body:"Barlow","Segoe UI",system-ui,-apple-system,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12171C; --panel:#1A2128; --ink:#E6EAE7; --muted:#93A0AA; --line:#2C353E;
+    --green:#34C272; --amber:#F0B73A; --red:#EF5A55; --off:#2E3740; --accent:#6FA8DC;
+    --field:#141A20; --hi:rgba(111,168,220,.10);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12171C; --panel:#1A2128; --ink:#E6EAE7; --muted:#93A0AA; --line:#2C353E;
+  --green:#34C272; --amber:#F0B73A; --red:#EF5A55; --off:#2E3740; --accent:#6FA8DC;
+  --field:#141A20; --hi:rgba(111,168,220,.10);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+img,svg{max-width:100%}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.wrap{max-width:1120px;margin:0 auto;padding:20px 16px 48px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font:700 clamp(40px,7vw,64px)/.9 var(--cond);margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:6px 0 0}
+.sync{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--off);display:inline-block}
+.sync.cloud i{background:var(--green)}
+.sync.local i{background:var(--amber)}
+
+/* Andon board — the one loud element */
+.board{background:var(--ink);color:var(--bg);border-radius:10px;padding:18px 18px 16px;display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;margin-bottom:22px}
+.tower{display:flex;flex-direction:column;align-items:center;gap:6px}
+.tower .lamps{display:flex;flex-direction:column;gap:6px;padding:8px;border-radius:8px;background:rgba(127,127,127,.18)}
+.lamp{border-radius:50%;background:var(--off);opacity:.35;position:relative}
+.tower .lamp{width:34px;height:34px}
+.lamp.on{opacity:1}
+.lamp.g.on{background:radial-gradient(circle at 35% 35%,#9ff0c0,var(--green) 60%);box-shadow:0 0 18px var(--green)}
+.lamp.a.on{background:radial-gradient(circle at 35% 35%,#ffe7a6,var(--amber) 60%);box-shadow:0 0 18px var(--amber)}
+.lamp.r.on{background:radial-gradient(circle at 35% 35%,#ffb4b1,var(--red) 60%);box-shadow:0 0 18px var(--red)}
+.tower .pct{font:700 28px/1 var(--cond)}
+.tower .cap{font-size:12px;opacity:.7;text-align:center;max-width:90px;line-height:1.25}
+.strip-h{font:600 20px/1.1 var(--cond);margin:0 0 10px}
+.strip{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:thin}
+.wk{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;padding:4px 2px;cursor:pointer;color:inherit;border-radius:6px}
+.wk .lamp{width:26px;height:26px;opacity:1}
+.wk .lamp.g{background:var(--green)} .wk .lamp.a{background:var(--amber)} .wk .lamp.r{background:var(--red)}
+.wk .lamp.live{box-shadow:0 0 0 3px var(--ink),0 0 0 5px currentColor}
+.wk span{font:600 14px/1 var(--cond);opacity:.8}
+.wk small{font-size:11px;opacity:.6}
+.wk.sel{background:rgba(127,127,127,.2)}
+.legend{font-size:12px;opacity:.7;margin-top:6px}
+
+.banner{border:1px solid var(--line);border-left:6px solid var(--muted);background:var(--panel);border-radius:8px;padding:12px 14px;margin-bottom:22px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.banner.g{border-left-color:var(--green)} .banner.a{border-left-color:var(--amber)} .banner.r{border-left-color:var(--red)}
+.banner p{margin:0}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}.board{grid-template-columns:minmax(0,1fr)}.tower{flex-direction:row;justify-content:flex-start;gap:14px}.tower .lamps{flex-direction:row}.tower .cap{max-width:none;text-align:left}}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px}
+section.panel.full{grid-column:1/-1}
+h2{font:600 26px/1.05 var(--cond);margin:0 0 4px}
+.lead{color:var(--muted);margin:0 0 14px;font-size:15px;max-width:70ch}
+h3{font:600 17px/1.2 var(--cond);margin:18px 0 8px;letter-spacing:.01em}
+
+.nav{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.nav strong{font:600 18px/1 var(--cond);min-width:0}
+.btn{border:1px solid var(--line);background:var(--field);border-radius:6px;padding:8px 12px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--red)}
+.btn.danger.armed{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{padding:4px 9px;font-size:14px}
+
+.tablewrap{overflow-x:auto}
+table.habits{border-collapse:collapse;width:100%;min-width:520px}
+.habits th,.habits td{padding:4px 3px;text-align:center}
+.habits thead th{font:600 14px/1.1 var(--cond);color:var(--muted)}
+.habits thead th b{display:block;font:600 17px/1.1 var(--cond);color:var(--ink)}
+.habits thead th.today{color:var(--accent)}
+.habits thead th.today b{color:var(--accent)}
+.habits td.today{background:var(--hi)}
+.habits th.row{text-align:left;font:500 15px/1.25 var(--body);padding-right:10px;color:var(--ink)}
+.habits th.row small{display:block;color:var(--muted);font-size:12px}
+.habits tr.sep td,.habits tr.sep th{border-top:1px dashed var(--line);padding-top:10px}
+.tick{width:36px;height:36px;border-radius:6px;border:2px solid var(--line);background:var(--field);cursor:pointer;display:inline-grid;place-items:center;padding:0}
+.tick svg{width:20px;height:20px;opacity:0}
+.tick[aria-pressed="true"]{background:var(--green);border-color:var(--green)}
+.tick[aria-pressed="true"] svg{opacity:1}
+.tick:disabled{opacity:.25;cursor:default}
+.count{font:600 16px/1 var(--cond);white-space:nowrap}
+.count.ok{color:var(--green)}
+.plan{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+.plan b{color:var(--ink)}
+
+form.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted)}
+label.f input{border:1px solid var(--line);background:var(--field);border-radius:6px;padding:8px 10px;width:100%;min-width:0}
+label.f.n{width:84px}
+label.f.d{width:150px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--field);padding:8px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.msg{font-size:14px;margin:8px 0 0;min-height:1.2em}
+.msg.err{color:var(--red)}
+.msg.ok{color:var(--green)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.stat{border:1px solid var(--line);border-radius:6px;padding:10px}
+.stat .k{font-size:12.5px;color:var(--muted)}
+.stat .v{font:600 26px/1.05 var(--cond)}
+.stat .v small{font:500 14px var(--body);color:var(--muted)}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;color:#fff;margin-top:4px}
+.chip.g{background:var(--green)} .chip.a{background:var(--amber);color:#1d1600} .chip.r{background:var(--red)}
+.chart{margin-top:6px}
+.chart svg{display:block;width:100%;height:auto}
+.note{font-size:13px;color:var(--muted);margin:10px 0 0;max-width:72ch}
+ul.log{list-style:none;margin:8px 0 0;padding:0;font-size:14px}
+ul.log li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+ul.log li:last-child{border-bottom:0}
+ul.log .x{background:none;border:0;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px}
+
+.checks{list-style:none;margin:0;padding:0}
+.checks li{display:flex;gap:10px;align-items:center;padding:6px 0}
+.checks .tick{width:28px;height:28px;flex:0 0 auto}
+.checks .tick svg{width:16px;height:16px}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media (max-width:700px){.twocol{grid-template-columns:1fr}}
+.exams{margin:0;padding-left:18px;font-size:14.5px}
+.exams li{margin:2px 0}
+.when{font:600 22px/1.15 var(--cond)}
+
+.start{max-width:560px}
+.start p{max-width:60ch}
+.hidden{display:none !important}
+@media (prefers-reduced-motion: reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Rotina</h1>
+      <p class="sub" id="sub">Painel semanal de hábitos, tensão e medidas.</p>
+    </div>
+    <div class="sync" id="sync"><i></i><span>A ligar…</span></div>
+  </header>
+
+  <!-- Before recording starts -->
+  <section class="panel start hidden" id="startPanel">
+    <h2>Começar o registo</h2>
+    <p class="lead">Cada semana começa à segunda-feira com a grelha limpa. No fim de cada semana, a luz dessa semana fica no semáforo: verde a partir de 80% dos objetivos cumpridos, amarelo entre 50% e 79%, vermelho abaixo disso.</p>
+    <form class="row" id="startForm">
+      <label class="f d">Data de início<input type="date" id="startDate" required></label>
+      <button class="btn primary" type="submit">Começar registo</button>
+    </form>
+  </section>
+
+  <div id="app" class="hidden">
+    <div class="board" aria-label="Semáforo das semanas">
+      <div class="tower">
+        <div class="lamps" aria-hidden="true">
+          <div class="lamp r" id="lampR"></div>
+          <div class="lamp a" id="lampA"></div>
+          <div class="lamp g" id="lampG"></div>
+        </div>
+        <div class="pct" id="livePct">0%</div>
+        <div class="cap">esta semana, até hoje</div>
+      </div>
+      <div style="min-width:0">
+        <p class="strip-h">Semanas</p>
+        <div class="strip" id="strip"></div>
+        <p class="legend">Toca numa semana para a abrir. A semana em curso tem um anel.</p>
+      </div>
+    </div>
+
+    <div class="banner hidden" id="banner">
+      <p id="bannerText"></p>
+      <button class="btn sm" id="bannerOk">Visto</button>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Semana</h2>
+        <div class="nav">
+          <button class="btn sm" id="prevWk" aria-label="Semana anterior">‹</button>
+          <strong id="wkTitle"></strong>
+          <button class="btn sm" id="nextWk" aria-label="Semana seguinte">›</button>
+          <button class="btn sm" id="thisWk">Hoje</button>
+        </div>
+        <div class="tablewrap"><table class="habits" id="habits"></table></div>
+        <div class="plan" id="plan"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Tensão arterial</h2>
+        <p class="lead">Uma leitura de manhã e outra à noite, cerca de 12 horas depois.</p>
+        <form class="row" id="bpForm" novalidate>
+          <label class="f d">Dia<input type="date" id="bpDate"></label>
+          <div>
+            <div style="font-size:13px;color:var(--muted);margin-bottom:3px">Período</div>
+            <div class="seg" role="group" aria-label="Período">
+              <button type="button" id="bpM" aria-pressed="true">Manhã</button>
+              <button type="button" id="bpN" aria-pressed="false">Noite</button>
+            </div>
+          </div>
+          <label class="f n">Máxima<input type="number" inputmode="numeric" id="bpS" placeholder="120"></label>
+          <label class="f n">Mínima<input type="number" inputmode="numeric" id="bpD" placeholder="80"></label>
+          <label class="f n">Pulso<input type="number" inputmode="numeric" id="bpH" placeholder="70"></label>
+          <button class="btn primary" type="submit">Guardar leitura</button>
+        </form>
+        <p class="msg" id="bpMsg" role="status"></p>
+        <div class="stats" id="bpStats"></div>
+        <div class="chart" id="bpChart"></div>
+        <ul class="log" id="bpLog"></ul>
+        <p class="note">Mede sentado, depois de 5 minutos em repouso, com o braço apoiado à altura do coração e sem café ou tabaco nos 30 minutos anteriores. Confirma que a braçadeira é do tamanho do teu braço. Referência para medições em casa: abaixo de 120/70 é normal, a partir de 135/85 é para falar com o médico.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Peso e cintura</h2>
+        <p class="lead">Peso uma vez por semana. Cintura uma vez por mês, de manhã, à altura do umbigo.</p>
+        <form class="row" id="msForm" novalidate>
+          <label class="f d">Dia<input type="date" id="msDate"></label>
+          <label class="f n">Peso (kg)<input type="number" step="0.1" inputmode="decimal" id="msW" placeholder="80"></label>
+          <label class="f n">Cintura (cm)<input type="number" step="0.5" inputmode="decimal" id="msC" placeholder="90"></label>
+          <button class="btn primary" type="submit">Guardar medida</button>
+        </form>
+        <p class="msg" id="msMsg" role="status"></p>
+        <div class="stats" id="msStats"></div>
+        <div class="chart" id="msChart"></div>
+        <ul class="log" id="msLog"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Análises de controlo</h2>
+        <p class="lead">Repetir entre a semana 8 e a semana 12 do registo.</p>
+        <p class="when" id="labWhen"></p>
+        <p class="note" id="labWindow" style="margin-top:2px"></p>
+        <div class="twocol" style="margin-top:6px">
+          <div>
+            <h3>Preparação</h3>
+            <ul class="checks" id="prep"></ul>
+            <button class="btn sm" id="prepReset" style="margin-top:8px">Limpar preparação</button>
+          </div>
+          <div>
+            <h3>Pedir ao médico</h3>
+            <ul class="exams">
+              <li>Creatinina e cistatina C</li>
+              <li>Albumina/creatinina na urina</li>
+              <li>HbA1c e insulina em jejum</li>
+              <li>Perfil lipídico completo</li>
+              <li>Ácido úrico</li>
+              <li>TSH e GGT</li>
+              <li>Urina tipo II</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel full">
+        <h2>Dados</h2>
+        <p class="lead" id="dataLead">Os dados ficam guardados na tua conta e só tu os vês.</p>
+        <form class="row" id="setForm" novalidate>
+          <label class="f n">Altura (cm)<input type="number" id="height" inputmode="numeric"></label>
+          <label class="f d">Início do registo<input type="date" id="startEdit"></label>
+          <button class="btn" type="submit">Guardar definições</button>
+        </form>
+        <div class="row" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="btn" id="exportBtn">Exportar cópia (JSON)</button>
+          <label class="btn" style="display:inline-flex;align-items:center">Importar cópia<input type="file" id="importFile" accept="application/json,.json" class="hidden"></label>
+          <button class="btn danger" id="resetBtn">Apagar tudo</button>
+        </div>
+        <p class="msg" id="dataMsg" role="status"></p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+const LS = "rotina.v1";
+const DAYS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+const DAILY = [
+  {id:"sugar", label:"Sem refrigerantes nem açúcar"},
+  {id:"water", label:"Água", hint:"1,5 a 2 litros"},
+  {id:"walk",  label:"Caminhada depois de comer", hint:"10 a 15 minutos"},
+  {id:"plate", label:"Metade do prato com legumes"}
+];
+const SESS = [
+  {id:"bike",  label:"Bicicleta"},
+  {id:"force", label:"Força", hint:"20 a 30 minutos"}
+];
+const PREP = [
+  {id:"hyd",   label:"Beber água com regularidade nos 2 a 3 dias antes"},
+  {id:"ex",    label:"Sem exercício intenso nas 48 a 72 horas antes"},
+  {id:"meat",  label:"Jantar leve e sem carne na véspera"},
+  {id:"nsaid", label:"Sem anti-inflamatórios nos dias antes"},
+  {id:"fast",  label:"Jejum de 12 horas"}
+];
+const CHECK = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* ---------- dates ---------- */
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const dayIdx = d => (d.getDay()+6)%7;
+const monday = d => { const x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); x.setDate(x.getDate()-dayIdx(x)); return x; };
+const today = () => { const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); };
+const fmt = (d,o) => d.toLocaleDateString("pt-PT", o||{day:"numeric",month:"short"}).replace(".","");
+const WEEKMS = 7*864e5;
+
+/* ---------- state ---------- */
+function blank(){ return {v:1,start:null,height:176,weeks:{},bp:{},meas:{},prep:{},ack:null}; }
+function normalize(s){
+  const b=blank(); if(!s||typeof s!=="object") return b;
+  const o=JSON.parse(JSON.stringify(s));
+  for(const k of Object.keys(b)) if(o[k]===undefined) o[k]=b[k];
+  return o;
+}
+function loadLocal(){ try{ const r=localStorage.getItem(LS); return r?normalize(JSON.parse(r)):null; }catch(e){ return null; } }
+function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
+
+let state = loadLocal() || blank();
+let remote = null, writing = false, pending = false, timer = null;
+let viewKey = null;
+
+function persist(){
+  saveLocal();
+  if(!remote) return;
+  clearTimeout(timer);
+  timer = setTimeout(flush, 700);
+}
+async function flush(){
+  if(!remote) return;
+  if(writing){ pending=true; return; }
+  writing=true;
+  try{ await remote.set(JSON.parse(JSON.stringify(state))); setSync("cloud"); }
+  catch(e){ if(e && e.code==="unavailable"){ setTimeout(flush, 1500+Math.random()*1000); } else { setSync("error"); } }
+  writing=false;
+  if(pending){ pending=false; flush(); }
+}
+function setSync(mode){
+  const el=document.getElementById("sync");
+  el.className="sync "+(mode==="cloud"?"cloud":mode==="local"?"local":"");
+  el.querySelector("span").textContent =
+    mode==="cloud" ? "Guardado na conta" :
+    mode==="local" ? "Guardado só neste dispositivo" :
+    mode==="error" ? "Não foi possível guardar na conta" : "A ligar…";
+  document.getElementById("dataLead").textContent = mode==="local"
+    ? "Os dados estão guardados apenas neste navegador. Exporta uma cópia de vez em quando."
+    : "Os dados ficam guardados na tua conta e só tu os vês. Podes abrir este painel no telemóvel e no computador.";
+}
+
+/* ---------- week logic ---------- */
+function startMonday(){ return monday(parse(state.start)); }
+function weekNum(key){ return Math.round((parse(key)-startMonday())/WEEKMS)+1; }
+function keyOf(n){ return ymd(addDays(startMonday(),(n-1)*7)); }
+function phase(n){
+  if(n<=4)  return {name:"base", bike:2, text:"Bicicleta 2 a 3 vezes, 30 minutos em ritmo de conversa. Força 2 vezes, 20 minutos. Caminhada depois do jantar."};
+  if(n<=8)  return {name:"construção", bike:3, text:"Bicicleta 3 vezes, 40 a 45 minutos. Força 2 vezes, 25 a 30 minutos. Caminhada depois de duas refeições."};
+  if(n<=12) return {name:"consolidação", bike:3, text:"Bicicleta 3 vezes, com uma volta longa de 60 a 90 minutos ao fim de semana. Força 2 vezes, 30 minutos, com mais carga."};
+  return {name:"manutenção", bike:3, text:"Manter: bicicleta 3 vezes por semana, força 2 vezes, caminhada depois das refeições."};
+}
+function week(key){
+  if(!state.weeks[key]){
+    const w={}; for(const h of DAILY.concat(SESS)) w[h.id]=[0,0,0,0,0,0,0];
+    return w;
+  }
+  return state.weeks[key];
+}
+function firstIdx(key){ return key===ymd(startMonday()) ? dayIdx(parse(state.start)) : 0; }
+function lastIdx(key){ const tk=ymd(monday(today())); return key===tk ? dayIdx(today()) : 6; }
+
+function score(key){
+  const tk=ymd(monday(today()));
+  if(key>tk || weekNum(key)<1) return null;
+  const w=week(key), a=firstIdx(key), b=lastIdx(key), days=b-a+1;
+  if(days<=0) return null;
+  const ph=phase(weekNum(key)), r=[];
+  for(const h of DAILY){ let c=0; for(let i=a;i<=b;i++) if(w[h.id][i]) c++; r.push(c/days); }
+  for(const h of SESS){
+    const target = h.id==="bike" ? ph.bike : 2;
+    const exp = days===7 ? target : Math.round(target*days/7);
+    if(exp>0){ const c=w[h.id].reduce((s,x)=>s+(x?1:0),0); r.push(Math.min(1,c/exp)); }
+  }
+  return r.reduce((s,x)=>s+x,0)/r.length;
+}
+const light = s => s==null ? "" : s>=.8 ? "g" : s>=.5 ? "a" : "r";
+const lightName = c => c==="g"?"verde":c==="a"?"amarelo":"vermelho";
+
+/* ---------- render ---------- */
+function render(){
+  const started=!!state.start;
+  document.getElementById("startPanel").classList.toggle("hidden", started);
+  document.getElementById("app").classList.toggle("hidden", !started);
+  if(!started){
+    const sd=document.getElementById("startDate"); if(!sd.value) sd.value=ymd(today());
+    document.getElementById("sub").textContent="Painel semanal de hábitos, tensão e medidas.";
+    return;
+  }
+  const tk=ymd(monday(today()));
+  if(!viewKey) viewKey=tk;
+  const n=weekNum(tk);
+  document.getElementById("sub").textContent =
+    n<=12 ? `Semana ${n} de 12, fase de ${phase(n).name}.` : `Semana ${n}, fase de manutenção.`;
+  renderBoard(); renderBanner(); renderWeek(); renderBP(); renderMeas(); renderLab(); renderData();
+}
+
+function renderBoard(){
+  const tk=ymd(monday(today())), cur=weekNum(tk), s=score(tk), c=light(s);
+  for(const x of ["R","A","G"]) document.getElementById("lamp"+x).classList.toggle("on", c===x.toLowerCase());
+  document.getElementById("livePct").textContent = s==null ? "—" : Math.round(s*100)+"%";
+  const strip=document.getElementById("strip"); strip.innerHTML="";
+  for(let i=1;i<=Math.max(cur,1);i++){
+    const k=keyOf(i), sc=score(k), cl=light(sc);
+    const b=document.createElement("button");
+    b.className="wk"+(k===viewKey?" sel":"");
+    b.style.color = cl ? `var(--${cl==="g"?"green":cl==="a"?"amber":"red"})` : "inherit";
+    b.innerHTML=`<div class="lamp ${cl}${k===tk?" live":""}"></div><span style="color:var(--bg)">S${i}</span><small style="color:var(--bg)">${sc==null?"—":Math.round(sc*100)+"%"}</small>`;
+    b.setAttribute("aria-label",`Semana ${i}, ${sc==null?"sem dados":Math.round(sc*100)+"%, "+lightName(cl)}`);
+    b.onclick=()=>{ viewKey=k; render(); };
+    strip.appendChild(b);
+  }
+  strip.scrollLeft=strip.scrollWidth;
+}
+
+function renderBanner(){
+  const tk=ymd(monday(today())), n=weekNum(tk), ban=document.getElementById("banner");
+  if(n<2 || state.ack===tk){ ban.classList.add("hidden"); return; }
+  const pk=keyOf(n-1), s=score(pk), c=light(s);
+  const msg = c==="g" ? "Boa semana. Mantém o ritmo."
+            : c==="a" ? "Semana a meio caminho. Escolhe um hábito para reforçar esta semana."
+            : "Semana difícil. Recomeça pelo mais simples: sem refrigerantes e caminhada depois do jantar.";
+  ban.className="banner "+c;
+  document.getElementById("bannerText").innerHTML=`<b>A semana ${n-1} fechou em ${lightName(c)} (${Math.round(s*100)}%).</b> ${msg}`;
+}
+
+function renderWeek(){
+  const tk=ymd(monday(today())), n=weekNum(viewKey), mon=parse(viewKey), w=week(viewKey);
+  const a=firstIdx(viewKey), b=lastIdx(viewKey), isCur=viewKey===tk, ph=phase(n);
+  document.getElementById("wkTitle").textContent=`Semana ${n}: ${fmt(mon)} a ${fmt(addDays(mon,6))}`;
+  document.getElementById("prevWk").disabled = n<=1;
+  document.getElementById("nextWk").disabled = viewKey>=tk;
+  document.getElementById("thisWk").disabled = isCur;
+  const tIdx=isCur?dayIdx(today()):-1;
+  let h="<thead><tr><th></th>";
+  for(let i=0;i<7;i++) h+=`<th class="${i===tIdx?"today":""}">${DAYS[i]}<b>${addDays(mon,i).getDate()}</b></th>`;
+  h+="<th></th></tr></thead><tbody>";
+  const row=(x,target,sep)=>{
+    const arr=w[x.id]; let c=0; arr.forEach(v=>{ if(v) c++; });
+    let r=`<tr class="${sep?"sep":""}"><th class="row" scope="row">${x.label}${x.hint?`<small>${x.hint}</small>`:""}</th>`;
+    for(let i=0;i<7;i++){
+      const dis = i<a || i>b;
+      r+=`<td class="${i===tIdx?"today":""}"><button class="tick" data-h="${x.id}" data-i="${i}" aria-pressed="${arr[i]?"true":"false"}" aria-label="${x.label}, ${DAYS[i]}" ${dis?"disabled":""}>${CHECK}</button></td>`;
+    }
+    const goal = target!=null ? target : (b-a+1);
+    r+=`<td class="count ${c>=goal?"ok":""}">${c}/${goal}</td></tr>`;
+    return r;
+  };
+  DAILY.forEach(x=>h+=row(x,null,false));
+  SESS.forEach((x,i)=>h+=row(x, x.id==="bike"?ph.bike:2, i===0));
+  h+="</tbody>";
+  const t=document.getElementById("habits"); t.innerHTML=h;
+  t.querySelectorAll(".tick").forEach(btn=>btn.onclick=()=>{
+    const k=viewKey;
+    if(!state.weeks[k]) state.weeks[k]=week(k);
+    const arr=state.weeks[k][btn.dataset.h], i=+btn.dataset.i;
+    arr[i]=arr[i]?0:1;
+    persist(); render();
+  });
+  document.getElementById("plan").innerHTML=`<b>Fase de ${ph.name}.</b> ${ph.text}`;
+}
+
+/* ---------- blood pressure ---------- */
+let bpPeriod = new Date().getHours()<14 ? "m" : "n";
+function bpClass(s,d){
+  if(s>=135||d>=85) return {c:"r",t:"Acima do limiar"};
+  if(s>=120||d>=70) return {c:"a",t:"Elevada"};
+  return {c:"g",t:"Normal"};
+}
+function bpEntries(){ return Object.entries(state.bp).map(([k,v])=>({k,d:k.slice(0,10),p:k.slice(11),...v})).sort((x,y)=>x.k<y.k?-1:1); }
+function avg(list,f){ const v=list.map(f).filter(x=>x!=null&&x!==""); return v.length? v.reduce((a,b)=>a+ +b,0)/v.length : null; }
+
+function renderBP(){
+  document.getElementById("bpM").setAttribute("aria-pressed", bpPeriod==="m");
+  document.getElementById("bpN").setAttribute("aria-pressed", bpPeriod==="n");
+  const dt=document.getElementById("bpDate"); if(!dt.value) dt.value=ymd(today());
+  const all=bpEntries(), from=ymd(addDays(today(),-6));
+  const last7=all.filter(e=>e.d>=from);
+  const stat=(title,list)=>{
+    if(!list.length) return `<div class="stat"><div class="k">${title}</div><div class="v">—</div></div>`;
+    const s=Math.round(avg(list,e=>e.s)), d=Math.round(avg(list,e=>e.dia)), hr=avg(list,e=>e.hr), cl=bpClass(s,d);
+    return `<div class="stat"><div class="k">${title}</div><div class="v">${s}/${d}${hr?` <small>${Math.round(hr)} bpm</small>`:""}</div><span class="chip ${cl.c}">${cl.t}</span></div>`;
+  };
+  document.getElementById("bpStats").innerHTML =
+    stat("Manhãs, 7 dias", last7.filter(e=>e.p==="m")) +
+    stat("Noites, 7 dias", last7.filter(e=>e.p==="n")) +
+    stat(`Média, ${last7.length} ${last7.length===1?"leitura":"leituras"}`, last7);
+  // chart: last 14 days, daily averages
+  const days=[]; for(let i=13;i>=0;i--) days.push(ymd(addDays(today(),-i)));
+  const byDay=d=>all.filter(e=>e.d===d);
+  const sys=days.map((d,i)=>{ const l=byDay(d); return l.length?{x:i,y:avg(l,e=>e.s)}:null; });
+  const dia=days.map((d,i)=>{ const l=byDay(d); return l.length?{x:i,y:avg(l,e=>e.dia)}:null; });
+  document.getElementById("bpChart").innerHTML = all.length ? chart({
+    n:14, ymin:50, ymax:170,
+    series:[{pts:sys,color:"var(--accent)",name:"Máxima"},{pts:dia,color:"var(--muted)",name:"Mínima"}],
+    refs:[{y:135,label:"135"},{y:85,label:"85"}],
+    xl:[fmt(parse(days[0])),"hoje"]
+  }) : "";
+  const log=document.getElementById("bpLog");
+  log.innerHTML = all.slice(-6).reverse().map(e=>`<li><span>${fmt(parse(e.d),{weekday:"short",day:"numeric",month:"short"})}, ${e.p==="m"?"manhã":"noite"}</span><span><b>${e.s}/${e.dia}</b>${e.hr?`, ${e.hr} bpm`:""}</span><button class="x" data-k="${e.k}" aria-label="Apagar leitura">×</button></li>`).join("");
+  log.querySelectorAll(".x").forEach(b=>b.onclick=()=>{ delete state.bp[b.dataset.k]; persist(); render(); });
+}
+
+/* ---------- measures ---------- */
+function measEntries(){ return Object.entries(state.meas).map(([d,v])=>({d,...v})).sort((a,b)=>a.d<b.d?-1:1); }
+function renderMeas(){
+  const dt=document.getElementById("msDate"); if(!dt.value) dt.value=ymd(today());
+  const all=measEntries(), ws=all.filter(e=>e.w), cs=all.filter(e=>e.c);
+  const h=+state.height||176;
+  const delta=(l,k,u)=>{ if(l.length<2) return ""; const d=l[l.length-1][k]-l[0][k]; return `<small>${d>0?"+":""}${d.toFixed(1).replace(".",",")} ${u} desde o início</small>`; };
+  let html="";
+  html+=`<div class="stat"><div class="k">Peso</div><div class="v">${ws.length?String(ws[ws.length-1].w).replace(".",",")+" <small>kg</small>":"—"}</div>${delta(ws,"w","kg")}</div>`;
+  if(cs.length){
+    const c=cs[cs.length-1].c, r=c/h, cl=c<94?"g":c<102?"a":"r";
+    html+=`<div class="stat"><div class="k">Cintura</div><div class="v">${String(c).replace(".",",")} <small>cm</small></div><span class="chip ${cl}">${c<94?"Abaixo de 94":"Meta: abaixo de 94"}</span><br>${delta(cs,"c","cm")}</div>`;
+    html+=`<div class="stat"><div class="k">Cintura / altura</div><div class="v">${r.toFixed(2).replace(".",",")}</div><span class="chip ${r<.5?"g":r<.6?"a":"r"}">${r<.5?"Abaixo de 0,50":"Meta: abaixo de 0,50"}</span></div>`;
+  } else {
+    html+=`<div class="stat"><div class="k">Cintura</div><div class="v">—</div></div>`;
+  }
+  document.getElementById("msStats").innerHTML=html;
+  const mk=(list,k)=>list.map((e,i)=>({x:i,y:e[k]}));
+  let ch="";
+  if(ws.length>1) ch+=chart({n:ws.length,series:[{pts:mk(ws,"w"),color:"var(--accent)",name:"Peso"}],title:"Peso (kg)",pad:2,xl:[fmt(parse(ws[0].d)),fmt(parse(ws[ws.length-1].d))]});
+  if(cs.length>1) ch+=chart({n:cs.length,series:[{pts:mk(cs,"c"),color:"var(--accent)",name:"Cintura"}],title:"Cintura (cm)",refs:[{y:94,label:"94"}],pad:2,xl:[fmt(parse(cs[0].d)),fmt(parse(cs[cs.length-1].d))]});
+  document.getElementById("msChart").innerHTML=ch;
+  const log=document.getElementById("msLog");
+  log.innerHTML=all.slice(-5).reverse().map(e=>`<li><span>${fmt(parse(e.d),{day:"numeric",month:"short",year:"numeric"})}</span><span>${e.w?`<b>${String(e.w).replace(".",",")} kg</b>`:""}${e.w&&e.c?", ":""}${e.c?`<b>${String(e.c).replace(".",",")} cm</b>`:""}</span><button class="x" data-d="${e.d}" aria-label="Apagar medida">×</button></li>`).join("");
+  log.querySelectorAll(".x").forEach(b=>b.onclick=()=>{ delete state.meas[b.dataset.d]; persist(); render(); });
+}
+
+/* ---------- lab window ---------- */
+function renderLab(){
+  const s=parse(state.start), from=addDays(s,56), to=addDays(s,84), t=today();
+  const dd=Math.round((from-t)/864e5);
+  let when;
+  if(t<from) when = dd===1 ? "Falta 1 dia para a janela" : `Faltam ${dd} dias para a janela`;
+  else if(t<=to) when = "Estás na janela para repetir as análises";
+  else when = "A janela já passou. Marca as análises quando puderes";
+  document.getElementById("labWhen").textContent=when;
+  document.getElementById("labWindow").textContent=`Janela: ${fmt(from,{day:"numeric",month:"long"})} a ${fmt(to,{day:"numeric",month:"long"})}.`;
+  const ul=document.getElementById("prep");
+  ul.innerHTML=PREP.map(p=>`<li><button class="tick" data-p="${p.id}" aria-pressed="${state.prep[p.id]?"true":"false"}" aria-label="${p.label}">${CHECK}</button><span>${p.label}</span></li>`).join("");
+  ul.querySelectorAll(".tick").forEach(b=>b.onclick=()=>{ state.prep[b.dataset.p]=!state.prep[b.dataset.p]; persist(); render(); });
+}
+
+function renderData(){
+  const h=document.getElementById("height"); if(document.activeElement!==h) h.value=state.height||176;
+  const se=document.getElementById("startEdit"); if(document.activeElement!==se) se.value=state.start;
+}
+
+/* ---------- tiny SVG chart ---------- */
+function chart(o){
+  const W=600,H=170,L=34,R=10,T=o.title?22:10,B=22;
+  const ys=[]; o.series.forEach(s=>s.pts.forEach(p=>p&&ys.push(p.y))); (o.refs||[]).forEach(r=>ys.push(r.y));
+  let lo=o.ymin!=null?o.ymin:Math.min(...ys)-(o.pad||0), hi=o.ymax!=null?o.ymax:Math.max(...ys)+(o.pad||0);
+  if(hi-lo<1){ hi+=1; lo-=1; }
+  const X=i=>L+(o.n<=1?0:i*(W-L-R)/(o.n-1)), Y=v=>T+(hi-v)*(H-T-B)/(hi-lo);
+  let g=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.title||"Gráfico"}">`;
+  if(o.title) g+=`<text x="${L}" y="14" font-size="13" fill="var(--muted)" font-family="var(--body)">${o.title}</text>`;
+  g+=`<line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="var(--line)"/>`;
+  g+=`<text x="${L-6}" y="${Y(hi)+4}" font-size="11" text-anchor="end" fill="var(--muted)">${Math.round(hi)}</text>`;
+  g+=`<text x="${L-6}" y="${Y(lo)+4}" font-size="11" text-anchor="end" fill="var(--muted)">${Math.round(lo)}</text>`;
+  (o.refs||[]).forEach(r=>{ if(r.y<lo||r.y>hi) return; g+=`<line x1="${L}" x2="${W-R}" y1="${Y(r.y)}" y2="${Y(r.y)}" stroke="var(--red)" stroke-dasharray="4 4" opacity=".6"/><text x="${W-R}" y="${Y(r.y)-4}" font-size="11" text-anchor="end" fill="var(--red)">${r.label}</text>`; });
+  o.series.forEach(s=>{
+    let d="", pen=false;
+    s.pts.forEach(p=>{ if(!p){ pen=false; return; } d+=(pen?"L":"M")+X(p.x).toFixed(1)+" "+Y(p.y).toFixed(1)+" "; pen=true; });
+    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+    s.pts.forEach(p=>{ if(p) g+=`<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="3.5" fill="${s.color}"><title>${s.name}: ${Math.round(p.y*10)/10}</title></circle>`; });
+  });
+  if(o.xl){ g+=`<text x="${L}" y="${H-5}" font-size="11" fill="var(--muted)">${o.xl[0]}</text><text x="${W-R}" y="${H-5}" font-size="11" text-anchor="end" fill="var(--muted)">${o.xl[1]}</text>`; }
+  if(o.series.length>1){ let x=W-R; g+=""; o.series.slice().reverse().forEach(s=>{ const t=s.name; x-=t.length*6.5+22; g+=`<circle cx="${x+5}" cy="${T-2}" r="4" fill="${s.color}"/><text x="${x+13}" y="${T+2}" font-size="11" fill="var(--muted)">${t}</text>`; }); }
+  return g+"</svg>";
+}
+
+/* ---------- events ---------- */
+document.getElementById("startForm").onsubmit=e=>{
+  e.preventDefault();
+  const v=document.getElementById("startDate").value; if(!v) return;
+  state.start=v; state.ack=ymd(monday(today())); viewKey=null; persist(); render();
+};
+document.getElementById("prevWk").onclick=()=>{ viewKey=ymd(addDays(parse(viewKey),-7)); render(); };
+document.getElementById("nextWk").onclick=()=>{ viewKey=ymd(addDays(parse(viewKey),7)); render(); };
+document.getElementById("thisWk").onclick=()=>{ viewKey=ymd(monday(today())); render(); };
+document.getElementById("bannerOk").onclick=()=>{ state.ack=ymd(monday(today())); persist(); render(); };
+document.getElementById("bpM").onclick=()=>{ bpPeriod="m"; renderBP(); };
+document.getElementById("bpN").onclick=()=>{ bpPeriod="n"; renderBP(); };
+
+document.getElementById("bpForm").onsubmit=e=>{
+  e.preventDefault();
+  const m=document.getElementById("bpMsg"), d=document.getElementById("bpDate").value;
+  const s=+document.getElementById("bpS").value, di=+document.getElementById("bpD").value, hrv=document.getElementById("bpH").value;
+  m.className="msg err";
+  if(!d) return m.textContent="Escolhe o dia da leitura.";
+  if(!(s>=70&&s<=260)||!(di>=40&&di<=160)) return m.textContent="Indica a máxima e a mínima (por exemplo 120 e 80).";
+  if(di>=s) return m.textContent="A mínima tem de ser mais baixa do que a máxima.";
+  const hr = hrv ? +hrv : null;
+  if(hr!=null && !(hr>=30&&hr<=220)) return m.textContent="O pulso deve estar entre 30 e 220 bpm.";
+  const k=d+"_"+bpPeriod, replaced=!!state.bp[k];
+  state.bp[k]={s,dia:di,hr};
+  persist();
+  ["bpS","bpD","bpH"].forEach(id=>document.getElementById(id).value="");
+  if(s>=180||di>=110){ m.className="msg err"; m.textContent="Leitura guardada. Valor muito alto: repete depois de 5 minutos sentado. Se se mantiver, procura assistência médica."; }
+  else { m.className="msg ok"; m.textContent = replaced ? "Leitura substituída." : "Leitura guardada."; }
+  render();
+};
+
+document.getElementById("msForm").onsubmit=e=>{
+  e.preventDefault();
+  const m=document.getElementById("msMsg"), d=document.getElementById("msDate").value;
+  const w=document.getElementById("msW").value, c=document.getElementById("msC").value;
+  m.className="msg err";
+  if(!d) return m.textContent="Escolhe o dia da medida.";
+  if(!w&&!c) return m.textContent="Indica o peso, a cintura ou os dois.";
+  if(w&&!(+w>=30&&+w<=300)) return m.textContent="O peso deve estar entre 30 e 300 kg.";
+  if(c&&!(+c>=40&&+c<=200)) return m.textContent="A cintura deve estar entre 40 e 200 cm.";
+  const prev=state.meas[d]||{};
+  state.meas[d]={w: w?+w:(prev.w||null), c: c?+c:(prev.c||null)};
+  persist();
+  document.getElementById("msW").value=""; document.getElementById("msC").value="";
+  m.className="msg ok"; m.textContent="Medida guardada.";
+  render();
+};
+
+document.getElementById("prepReset").onclick=()=>{ state.prep={}; persist(); render(); };
+
+document.getElementById("setForm").onsubmit=e=>{
+  e.preventDefault();
+  const m=document.getElementById("dataMsg"), h=+document.getElementById("height").value, s=document.getElementById("startEdit").value;
+  if(!(h>=120&&h<=230)){ m.className="msg err"; m.textContent="A altura deve estar entre 120 e 230 cm."; return; }
+  if(!s){ m.className="msg err"; m.textContent="Escolhe a data de início."; return; }
+  state.height=h; state.start=s; viewKey=null; persist(); render();
+  m.className="msg ok"; m.textContent="Definições guardadas.";
+};
+
+let downloads=null;
+document.getElementById("exportBtn").onclick=async()=>{
+  const m=document.getElementById("dataMsg");
+  const data=JSON.stringify(state,null,2), name="rotina-copia-"+ymd(today())+".json";
+  if(downloads){
+    try{ await downloads.save({filename:name,data}); m.className="msg ok"; m.textContent="Cópia exportada."; }
+    catch(e){ m.className="msg err"; m.textContent = e&&e.code==="declined" ? "Exportação cancelada." : "Não foi possível exportar agora."; }
+    return;
+  }
+  try{
+    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([data],{type:"application/json"})); a.download=name; a.click();
+    m.className="msg ok"; m.textContent="Cópia exportada.";
+  }catch(e){ m.className="msg err"; m.textContent="Não foi possível exportar neste ecrã."; }
+};
+document.getElementById("importFile").onchange=async e=>{
+  const m=document.getElementById("dataMsg"), f=e.target.files[0]; if(!f) return;
+  try{
+    const o=JSON.parse(await f.text());
+    if(!o||o.v!==1||typeof o.weeks!=="object") throw 0;
+    state=normalize(o); viewKey=null; persist(); render();
+    m.className="msg ok"; m.textContent="Cópia importada.";
+  }catch(err){ m.className="msg err"; m.textContent="Esse ficheiro não é uma cópia deste painel."; }
+  e.target.value="";
+};
+let armTimer=null;
+document.getElementById("resetBtn").onclick=()=>{
+  const b=document.getElementById("resetBtn");
+  if(!b.classList.contains("armed")){
+    b.classList.add("armed"); b.textContent="Carrega de novo para apagar tudo";
+    clearTimeout(armTimer); armTimer=setTimeout(()=>{ b.classList.remove("armed"); b.textContent="Apagar tudo"; },4000);
+    return;
+  }
+  clearTimeout(armTimer); b.classList.remove("armed"); b.textContent="Apagar tudo";
+  state=blank(); viewKey=null; persist(); render();
+};
+
+/* refresh at midnight / new week without writing */
+let lastDay=ymd(today());
+setInterval(()=>{ const d=ymd(today()); if(d!==lastDay){ lastDay=d; viewKey=null; document.getElementById("bpDate").value=""; document.getElementById("msDate").value=""; render(); } },60000);
+
+render();
+
+/* ---------- account storage ---------- */
+(async()=>{
+  const c=window.claude;
+  if(!c||typeof c.use!=="function"){ setSync("local"); return; }
+  try{
+    const [db,user,dl]=await Promise.all([c.use("db"),c.use("user"),c.use("downloads")]);
+    downloads=dl||null;
+    if(!db||!user){ setSync("local"); return; }
+    const uid=await user.id();
+    if(!uid){ setSync("local"); return; }
+    const ref=db.doc("data/users/"+uid+"/state");
+    const snap=await ref.get();
+    if(snap.exists){
+      state=normalize(snap.data()); saveLocal(); viewKey=null; render();
+    } else if(state.start){
+      await ref.set(JSON.parse(JSON.stringify(state)));
+    }
+    remote=ref; setSync("cloud");
+  }catch(e){ setSync("local"); }
+})();
+})();
+</script>
+</body>
+</html>
